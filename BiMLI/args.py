@@ -18,8 +18,8 @@ def get_hits():
 def get_args():
     parser = argparse.ArgumentParser(description='BiMLI')
     # 数据集  FB15K-237
-    parser.add_argument('--dataset', type=str, default='DB15K',choices=['DB15K','FB15K','FB15K-237','YAGO15K','MedMKG','MKG-Y','MKG-W'] )
-    parser.add_argument('--datapath', type=str, default='/data/zh/code/dataset/') 
+    parser.add_argument('--dataset', type=str, default='DB15K',choices=['DB15K','MKG-W'] )
+    parser.add_argument('--datapath', type=str, default='../code/dataset/') 
 
     parser.add_argument('--image', type=int, default=1, help='parameter for the image_features (if needed)')
     parser.add_argument('--text', type=int, default=1, help='parameter for the text_features (if needed)')
@@ -73,12 +73,7 @@ def get_args():
     parser.add_argument('--kernel_size', type=int, default=3) # 手动设置
 
     
-    parser.add_argument('--cein_drop', type=float, default=0.2) # ConvE
-    parser.add_argument('--cehid_drop', type=float, default=0.2) # ConvE
-    parser.add_argument('--ceout_drop', type=float, default=0.2) # ConvE
-    parser.add_argument('--te_input_drop', type=float, default=0.5) #TuckER
-    parser.add_argument('--te_hidden_drop', type=float, default=0.3) #TuckER
-    parser.add_argument('--te_out_drop', type=float, default=0.5) # TuckER
+   
     parser.add_argument('--roat_dropout', type=float, default=0.184) #RotatE
 
     parser.add_argument('--activation_fun_att', type=str, default='ELU',
@@ -233,31 +228,3 @@ def get_logger(name):
         fh.setLevel(logging.DEBUG)
         logger.addHandler(fh)
     return logger
-
-# gpu中数据处理方法 测试集、验证集，不进行batch_size处理
-def get_gpu_dataloader(train_triplets,test_triplets,val_triplets,batch_size,rank):
-    # 给每个rank对应的进程分配训练的样本索引
-    train_sampler = torch.utils.data.distributed.DistributedSampler(train_triplets)
-    # test_sampler = torch.utils.data.distributed.DistributedSampler(test_triplets)
-    # val_sampler = torch.utils.data.distributed.DistributedSampler(val_triplets)
-    
-    # 将样本索引每batch_size个元素组成一个list
-    train_batch_sampler = torch.utils.data.BatchSampler(
-        train_sampler, batch_size, drop_last=True) #drop_last True 向下取整，False 向上取整
-    nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
-    
-    train_loader = torch.utils.data.DataLoader(train_triplets,
-                                            batch_sampler=train_batch_sampler,
-                                            pin_memory=True,
-                                            num_workers=nw)
-    test_len = test_triplets.shape[0]
-    val_len = val_triplets.shape[0]
-    test_loader = test_triplets
-    val_loader = val_triplets
-    if rank == 0:
-        print('Using {} dataloader workers every process'.format(nw))
-        print('val Using {} dataloader workers every process'.format(val_len))
-        print('test Using {} dataloader workers every process'.format(test_len))
-        print(f'len(train_loader):{len(train_loader)},len(val_loader):{val_len},len(test_loader):{test_len}')
-    
-    return train_sampler,train_loader,test_loader,val_loader
